@@ -11,4 +11,4 @@ Appwrite Integration: Use of Appwrite's services for backend functionalities suc
 🛠️ Tech Stack
 Frontend: React, JavaScript, HTML, CSS
 Backend: Appwrite (Database, Authentication, Functions)
-Deployment: Vercel, Appwrite (for backend)
+Deployment: Netlify (rmegablog.netlify.app), Appwrite (for backend)
