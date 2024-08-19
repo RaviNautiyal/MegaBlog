@@ -1,4 +1,4 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Button, Input, RTE, Select } from "..";
 import appwriteService from "../../appwrite/config";
@@ -15,29 +15,54 @@ export default function PostForm({ post }) {
         },
     });
 
+    const [loading, setLoading] = useState(false);
+    const [errorMessage, setErrorMessage] = useState("");
     const navigate = useNavigate();
     const userData = useSelector((state) => state.auth.data);
 
     const submit = async (data) => {
-        try {
-            if (post) {
-                const file = data.image[0] ? await appwriteService.uploadFile(data.image[0]) : null;
+        setLoading(true);
+        setErrorMessage(""); // Reset error message
 
+        try {
+            // Validate title, content, and image
+            if (!data.title.trim()) {
+                setErrorMessage("Title is required.");
+                setLoading(false);
+                return;
+            }
+
+            if (!data.content.trim()) {
+                setErrorMessage("Content is required.");
+                setLoading(false);
+                return;
+            }
+
+            if (!post && !data.image[0]) {
+                setErrorMessage("Featured image is required.");
+                setLoading(false);
+                return;
+            }
+
+            let file;
+            if (data.image && data.image[0]) {
+                file = await appwriteService.uploadFile(data.image[0]);
+            }
+
+            if (post) {
                 if (file) {
                     appwriteService.deleteFile(post.featuredImage);
                 }
 
                 const dbPost = await appwriteService.updatePost(post.$id, {
                     ...data,
-                    featuredImage: file ? file.$id : undefined,
+                    featuredImage: file ? file.$id : post.featuredImage,
                 });
 
                 if (dbPost) {
                     navigate(`/post/${dbPost.$id}`);
                 }
             } else {
-                const file = await appwriteService.uploadFile(data.image[0]);
-
                 if (file) {
                     data.featuredImage = file.$id;
 
@@ -53,10 +78,15 @@ export default function PostForm({ post }) {
                     if (dbPost) {
                         navigate(`/post/${dbPost.$id}`);
                     }
+                } else {
+                    setErrorMessage("Featured image is required.");
                 }
             }
         } catch (error) {
             console.error("Error submitting post:", error);
+            setErrorMessage("An error occurred while submitting the post.");
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -99,7 +129,12 @@ export default function PostForm({ post }) {
                         setValue("slug", slugTransform(e.currentTarget.value), { shouldValidate: true });
                     }}
                 />
-                <RTE label="Content :" name="content" control={control} defaultValue={getValues("content")} />
+                <RTE
+                    label="Content :"
+                    name="content"
+                    control={control}
+                    defaultValue={getValues("content")}
+                />
             </div>
             <div className="w-1/3 px-2">
                 <Input
@@ -107,7 +142,7 @@ export default function PostForm({ post }) {
                     type="file"
                     className="mb-4"
                     accept="image/png, image/jpg, image/jpeg, image/gif"
-                    {...register("image", { required: !post })}
+                    {...register("image")}
                 />
                 {post && post.featuredImage && (
                     <div className="w-full mb-4">
@@ -125,8 +160,9 @@ export default function PostForm({ post }) {
                     {...register("status", { required: true })}
                 />
                 <Button type="submit" bgColor={post ? "bg-green-500" : undefined} className="w-full">
-                    {post ? "Update" : "Submit"}
+                    {loading ? "Submitting..." : post ? "Update" : "Submit"}
                 </Button>
+                {errorMessage && <p className="text-black w-fit m-auto">{errorMessage}</p>}
             </div>
         </form>
     );
